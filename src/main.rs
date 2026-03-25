@@ -1,4 +1,4 @@
-use std::u32;
+use std::panic::Location;
 
 use windows::{
     Win32::Foundation::*, Win32::Graphics::Direct3D::Fxc::*, Win32::Graphics::Direct3D::*,
@@ -6,6 +6,32 @@ use windows::{
     Win32::System::LibraryLoader::*, Win32::System::Threading::*,
     Win32::UI::WindowsAndMessaging::*, core::*,
 };
+
+//  START -- Recreation of the TomatoChiliNoodle Debug object from d3d312-shallow
+trait HrChecker<T> {
+    fn chk(self) -> Result<T>;
+}
+
+impl<T> HrChecker<T> for Result<T> {
+    #[track_caller]
+    fn chk(self) -> Result<T> {
+        eprintln!("its workin bois");
+        if let Err(ref e) = self {
+            let loc = Location::caller();
+
+            let msg = e
+                .message()
+                .to_string()
+                .replace('\n', " ")
+                .replace('\r', " ");
+
+            eprintln!("Graphics Error: {}\n {}({})", msg, loc.file(), loc.line());
+        }
+        self
+    }
+}
+
+// END -- Recreation of the TomatoChiliNoodle Debug object from d3d12-shallow
 
 trait D3DApp {
     fn new(command_line: &SampleCommandLine) -> Result<Self>
@@ -262,10 +288,12 @@ mod d3dapp_hello_triange {
 
         fn bind_to_window(&mut self, hwnd: &HWND) -> Result<()> {
             let command_queue: ID3D12CommandQueue = unsafe {
-                self.device.CreateCommandQueue(&D3D12_COMMAND_QUEUE_DESC {
-                    Type: D3D12_COMMAND_LIST_TYPE_DIRECT,
-                    ..Default::default()
-                })?
+                self.device
+                    .CreateCommandQueue(&D3D12_COMMAND_QUEUE_DESC {
+                        Type: D3D12_COMMAND_LIST_TYPE_DIRECT,
+                        ..Default::default()
+                    })
+                    .chk()?
             };
 
             let (width, height) = self.window_size();
@@ -285,13 +313,9 @@ mod d3dapp_hello_triange {
             };
 
             let swap_chain: IDXGISwapChain3 = unsafe {
-                self.dxgi_factory.CreateSwapChainForHwnd(
-                    &command_queue,
-                    *hwnd,
-                    &swap_chain_desc,
-                    None,
-                    None,
-                )?
+                self.dxgi_factory
+                    .CreateSwapChainForHwnd(&command_queue, *hwnd, &swap_chain_desc, None, None)
+                    .chk()?
             }
             .cast()?;
 
@@ -309,6 +333,7 @@ mod d3dapp_hello_triange {
                         Type: D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
                         ..Default::default()
                     })
+                    .chk()
             }?;
 
             let rtv_descriptor_size = unsafe {
@@ -352,18 +377,16 @@ mod d3dapp_hello_triange {
             let command_allocator = unsafe {
                 self.device
                     .CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT)
+                    .chk()
             }?;
 
             let root_signature = create_root_signature(&self.device)?;
             let pso = create_pipeline_state(&self.device, &root_signature)?;
 
             let command_list: ID3D12GraphicsCommandList = unsafe {
-                self.device.CreateCommandList(
-                    0,
-                    D3D12_COMMAND_LIST_TYPE_DIRECT,
-                    &command_allocator,
-                    &pso,
-                )
+                self.device
+                    .CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, &command_allocator, &pso)
+                    .chk()
             }?;
 
             unsafe {
@@ -501,7 +524,7 @@ mod d3dapp_hello_triange {
         if cfg!(debug_assertions) {
             unsafe {
                 let mut debug: Option<ID3D12Debug> = None;
-                if let Some(debug) = D3D12GetDebugInterface(&mut debug).ok().and(debug) {
+                if let Some(debug) = D3D12GetDebugInterface(&mut debug).chk().ok().and(debug) {
                     debug.EnableDebugLayer();
                 }
             }
@@ -513,7 +536,7 @@ mod d3dapp_hello_triange {
             DXGI_CREATE_FACTORY_FLAGS(0)
         };
 
-        let dxgi_factory: IDXGIFactory4 = unsafe { CreateDXGIFactory2(dxgi_factory_flags) }?;
+        let dxgi_factory: IDXGIFactory4 = unsafe { CreateDXGIFactory2(dxgi_factory_flags).chk() }?;
 
         let adapter = if command_line.use_warp_device {
             unsafe { dxgi_factory.EnumWarpAdapter() }
@@ -522,7 +545,7 @@ mod d3dapp_hello_triange {
         }?;
 
         let mut device: Option<ID3D12Device> = None;
-        unsafe { D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_1, &mut device)? };
+        unsafe { D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_1, &mut device).chk() };
 
         Ok((dxgi_factory, device.unwrap()))
     }
@@ -701,29 +724,31 @@ mod d3dapp_hello_triange {
 
         let mut vertex_buffer: Option<ID3D12Resource> = None;
         unsafe {
-            device.CreateCommittedResource(
-                &D3D12_HEAP_PROPERTIES {
-                    Type: D3D12_HEAP_TYPE_UPLOAD,
-                    ..Default::default()
-                },
-                D3D12_HEAP_FLAG_NONE,
-                &D3D12_RESOURCE_DESC {
-                    Dimension: D3D12_RESOURCE_DIMENSION_BUFFER,
-                    Width: std::mem::size_of_val(&vertices) as u64,
-                    Height: 1,
-                    DepthOrArraySize: 1,
-                    MipLevels: 1,
-                    SampleDesc: DXGI_SAMPLE_DESC {
-                        Count: 1,
-                        Quality: 0,
+            device
+                .CreateCommittedResource(
+                    &D3D12_HEAP_PROPERTIES {
+                        Type: D3D12_HEAP_TYPE_UPLOAD,
+                        ..Default::default()
                     },
-                    Layout: D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-                    ..Default::default()
-                },
-                D3D12_RESOURCE_STATE_GENERIC_READ,
-                None,
-                &mut vertex_buffer,
-            )?
+                    D3D12_HEAP_FLAG_NONE,
+                    &D3D12_RESOURCE_DESC {
+                        Dimension: D3D12_RESOURCE_DIMENSION_BUFFER,
+                        Width: std::mem::size_of_val(&vertices) as u64,
+                        Height: 1,
+                        DepthOrArraySize: 1,
+                        MipLevels: 1,
+                        SampleDesc: DXGI_SAMPLE_DESC {
+                            Count: 1,
+                            Quality: 0,
+                        },
+                        Layout: D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+                        ..Default::default()
+                    },
+                    D3D12_RESOURCE_STATE_GENERIC_READ,
+                    None,
+                    &mut vertex_buffer,
+                )
+                .chk()?
         };
         let vertex_buffer = vertex_buffer.unwrap();
 
