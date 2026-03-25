@@ -195,6 +195,20 @@ fn get_hardware_adapter(factory: &IDXGIFactory4) -> Result<IDXGIAdapter1> {
         }
         .is_ok()
         {
+            if cfg!(debug_assertions) {
+                let len = desc
+                    .Description
+                    .iter()
+                    .position(|&c| c == 0)
+                    .unwrap_or(desc.Description.len());
+                let device_name = String::from_utf16_lossy(&desc.Description[..len]);
+
+                eprintln!("Selected Device: {}", device_name);
+                eprintln!(
+                    "Show ya current VRAM: {} MB",
+                    desc.DedicatedVideoMemory / 1024 / 1024
+                );
+            }
             return Ok(adapter);
         }
     }
@@ -509,6 +523,7 @@ mod d3dapp_hello_triange {
 
         let mut device: Option<ID3D12Device> = None;
         unsafe { D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_1, &mut device)? };
+
         Ok((dxgi_factory, device.unwrap()))
     }
 
