@@ -34,7 +34,6 @@ impl<T> HrChecker<T> for Result<T> {
         self
     }
 }
-
 // END -- Recreation of the TomatoChiliNoodle Debug object from d3d12-shallow
 
 trait D3DApp {
@@ -43,7 +42,6 @@ trait D3DApp {
         Self: Sized;
 
     fn bind_to_window(&mut self, hwnd: &HWND) -> Result<()>;
-
     fn update(&mut self) {}
     fn render(&mut self) {}
     fn on_key_up(&mut self, _key: u8) {}
@@ -610,8 +608,8 @@ mod d3dapp_hello_triange {
         }
         .map(|()| vertex_shader.unwrap())?;
 
-        let mut pixel_shaders = None;
-        let pixel_shaders = unsafe {
+        let mut pixel_shader = None;
+        let pixel_shader = unsafe {
             D3DCompileFromFile(
                 &shaders_hlsl,
                 None,
@@ -620,11 +618,11 @@ mod d3dapp_hello_triange {
                 s!("ps_5_0"),
                 compile_flags,
                 0,
-                &mut pixel_shaders,
+                &mut pixel_shader,
                 None,
             )
         }
-        .map(|()| pixel_shaders.unwrap())?;
+        .map(|()| pixel_shader.unwrap())?;
 
         let mut input_element_descs: [D3D12_INPUT_ELEMENT_DESC; 2] = [
             D3D12_INPUT_ELEMENT_DESC {
@@ -658,8 +656,8 @@ mod d3dapp_hello_triange {
                 BytecodeLength: unsafe { vertex_shader.GetBufferSize() },
             },
             PS: D3D12_SHADER_BYTECODE {
-                pShaderBytecode: unsafe { pixel_shaders.GetBufferPointer() },
-                BytecodeLength: unsafe { pixel_shaders.GetBufferSize() },
+                pShaderBytecode: unsafe { pixel_shader.GetBufferPointer() },
+                BytecodeLength: unsafe { pixel_shader.GetBufferSize() },
             },
             RasterizerState: D3D12_RASTERIZER_DESC {
                 FillMode: D3D12_FILL_MODE_SOLID,
