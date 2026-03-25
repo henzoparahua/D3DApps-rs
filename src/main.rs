@@ -15,15 +15,19 @@ trait HrChecker<T> {
 impl<T> HrChecker<T> for Result<T> {
     #[track_caller]
     fn chk(self) -> Result<T> {
-        eprintln!("its workin bois");
         if let Err(ref e) = self {
             let loc = Location::caller();
 
-            let msg = e
+            let msg: String = e
                 .message()
                 .to_string()
-                .replace('\n', " ")
-                .replace('\r', " ");
+                .chars()
+                .filter_map(|c| match c {
+                    '\r' => None,
+                    '\n' => Some(' '),
+                    _ => Some(c),
+                })
+                .collect();
 
             eprintln!("Graphics Error: {}\n {}({})", msg, loc.file(), loc.line());
         }
@@ -545,7 +549,7 @@ mod d3dapp_hello_triange {
         }?;
 
         let mut device: Option<ID3D12Device> = None;
-        unsafe { D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_1, &mut device).chk() };
+        unsafe { D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_1, &mut device).chk()? };
 
         Ok((dxgi_factory, device.unwrap()))
     }
