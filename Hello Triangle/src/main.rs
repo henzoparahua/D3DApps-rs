@@ -203,7 +203,7 @@ extern "system" fn wndproc<S: D3DApp>(
     }
 }
 
-fn get_hardware_adapter(factory: &IDXGIFactory4) -> Result<IDXGIAdapter1> {
+fn get_hardware_adapter(factory: &IDXGIFactory4) -> Result<IDXGIAdapter3> {
     for i in 0.. {
         let adapter = unsafe { factory.EnumAdapters1(i)? };
         let desc = unsafe { adapter.GetDesc1()? };
@@ -223,19 +223,14 @@ fn get_hardware_adapter(factory: &IDXGIFactory4) -> Result<IDXGIAdapter1> {
         }
         .is_ok()
         {
-            if cfg!(debug_assertions) {
-                let len = desc
-                    .Description
-                    .iter()
-                    .position(|&c| c == 0)
-                    .unwrap_or(desc.Description.len());
-                let device_name = String::from_utf16_lossy(&desc.Description[..len]);
+            let adapter: IDXGIAdapter3 = adapter.cast()?;
 
-                eprintln!("Selected Device: {}", device_name);
-                eprintln!(
-                    "Show ya current VRAM: {} MB",
-                    desc.DedicatedVideoMemory / 1024 / 1024
+            if cfg!(debug_assertions) {
+                let device_name = String::from_utf16_lossy(
+                    &desc.Description
+                        [..desc.Description.iter().position(|&c| c == 0).unwrap_or(64)],
                 );
+                eprintln!("Selected Device: {}", device_name);
             }
             return Ok(adapter);
         }
