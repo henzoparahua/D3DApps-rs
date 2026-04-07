@@ -520,7 +520,7 @@ mod d3dapp_hello_triange {
     fn create_device(command_line: &SampleCommandLine) -> Result<(IDXGIFactory4, ID3D12Device)> {
         if cfg!(debug_assertions) {
             unsafe {
-                let mut debug: Option<ID3D12Debug> = None;
+                let mut debug: Option<ID3D12Debug1> = None;
                 if let Some(debug) = D3D12GetDebugInterface(&mut debug).chk().ok().and(debug) {
                     debug.EnableDebugLayer();
                 }
